@@ -1,6 +1,7 @@
 #include "rclcpp/logging.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <sketch_bot_core/robot_control.h>
+#include <sketch_bot_core/gcode.h>
 
 
 int main(int argc, char ** argv)
@@ -18,6 +19,9 @@ int main(int argc, char ** argv)
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(node);
   auto spinner = std::thread([&executor]() { executor.spin(); });
+
+
+  gcode::Gcode gcode;
 
   robot_control::RobotControl rc_;
   std::vector<double> joints = {0.0, 30.0, 45.0, 104.0};

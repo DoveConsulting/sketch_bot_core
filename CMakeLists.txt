@@ -39,11 +39,13 @@ include_directories(
 # Define library source files
 set(${PROJECT_NAME}_SRCS
   src/robot_control.cpp
+  src/gcode.cpp
 )
 
 # Define header file
 set(${PROJECT_NAME}_HDRS
   include/${PROJECT_NAME}/robot_control.h
+  include/${PROJECT_NAME}/gcode.h
 )
 
 ## Add library
