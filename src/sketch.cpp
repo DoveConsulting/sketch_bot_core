@@ -2,6 +2,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include <sketch_bot_core/robot_control.h>
 #include <sketch_bot_core/gcode.h>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 
 int main(int argc, char ** argv)
@@ -22,6 +23,10 @@ int main(int argc, char ** argv)
 
 
   gcode::Gcode gcode;
+  gcode.setOrigin(0.242, 0.003, 0.436);
+  std::string package_share_directory = ament_index_cpp::get_package_share_directory("sketch_bot_core");
+  std::string gcode_file_path = package_share_directory + "/gcode/apple.gcode";
+  geometry_msgs::msg::PoseArray pose_array = gcode.toPoseArray(gcode_file_path);
 
   robot_control::RobotControl rc_;
   std::vector<double> joints = {0.0, 30.0, 45.0, 104.0};

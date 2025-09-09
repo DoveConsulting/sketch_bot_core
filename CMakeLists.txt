@@ -73,7 +73,7 @@ install(
 )
 
 install(
-  DIRECTORY src launch rviz 
+  DIRECTORY src launch rviz gcode 
   DESTINATION share/${PROJECT_NAME}
 )
 

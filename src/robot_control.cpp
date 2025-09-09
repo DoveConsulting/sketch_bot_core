@@ -8,7 +8,6 @@ namespace robot_control
     :node_(std::make_shared<rclcpp::Node>("robot_control", 
            rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true))),
      move_group_interface_(node_, "ar_manipulator"),
-     // move_group_interface_gripper_(node_, "robotiq_gripper"),
      planning_scene_interface_(std::make_unique<moveit::planning_interface::PlanningSceneInterface>()),
      robot_model_loader_(std::make_shared<robot_model_loader::RobotModelLoader>(node_, "robot_description"))
   {
@@ -23,8 +22,6 @@ namespace robot_control
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(node_->get_clock());    
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-    // gz_link_attacher_client_ = node_->create_client<linkattacher_msgs::srv::AttachLink>("/ATTACHLINK");
-    // gz_link_detacher_client_ = node_->create_client<linkattacher_msgs::srv::DetachLink>("/DETACHLINK");
   }
 
   RobotControl::~RobotControl()
@@ -63,37 +60,6 @@ namespace robot_control
       return false;
     }
   }
-
-
-
-
-
-// std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg::Pose goal_pose)
-// {
-//   RCLCPP_INFO_STREAM(node_->get_logger(), "1");
-//   const moveit::core::RobotModelPtr& kinematic_model = robot_model_loader_->getModel();
-//   RCLCPP_INFO_STREAM(node_->get_logger(), "2");
-//   const moveit::core::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("ar_manipulator");
-//   RCLCPP_INFO_STREAM(node_->get_logger(), "3");
-//   const auto& solver = joint_model_group->getSolverInstance();
-//   RCLCPP_INFO_STREAM(node_->get_logger(), "4");
-//   // std::vector<std::string> joint_names = solver->getJointNames();
-//   RCLCPP_INFO_STREAM(node_->get_logger(), "5");
-//   std::vector<geometry_msgs::msg::Pose> poses = { goal_pose };
-
-//   std::vector<double> dummy_seed(4, 0.0);
-//   std::vector<std::vector<double>> joint_results;
-//   kinematics::KinematicsResult result;
-//   kinematics::KinematicsQueryOptions options;
-
-//   if (!solver->getPositionIK(poses, dummy_seed, joint_results, result, options))
-//   {
-//     RCLCPP_ERROR_STREAM(node_->get_logger(), "Failed to get IK solutions");
-//   }
-//   RCLCPP_INFO_STREAM(node_->get_logger(), "6");
-//   return joint_results;
-// }
-
 
 
 
@@ -137,158 +103,6 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
   {
     joint_results[i][3] = -joint_results[i][2] - joint_results[i][1] + (M_PI/2.0);
   }
-
-
-  return joint_results;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // std::vector<std::vector<double>> joint_results;
-
-  // double l1 = 0.036;
-  // double L = 0.356;
-  // double M = 0.352;
-  // double N = 0.085;
-
-  // double x = goal_pose.position.x;
-  // double y = goal_pose.position.y;
-  // double z = goal_pose.position.z - l1;
-
-  // double phi = M_PI;//M_PI;//M_PI; 
-
-  // double R = sqrt(x * x + y * y);
-
-  // double s = R - N;
-  // double Q = sqrt(s * s + z * z);
-
-  // double f = atan2(z, s);
-
-  // double g = acos(((L*L) + (Q*Q) - (M*M)) / (2 * L * Q));
-
-  // double theta2 = f + g - M_PI/2;
-
-  // double theta3 =  acos(((M*M) + (L*L) - (Q*Q)) / (2 * L * M));
-
-  // double theta4 = -theta3 -theta2 + phi;
-
-  // double theta1 = atan2(y, x);
-
-  // joint_results.push_back({theta1, theta2, theta3, theta4});
-
-
-  // std::vector<std::vector<double>> joint_results;
-
-  // double l1 = 0.036;
-  // double l2 = 0.356;
-  // double l3 = 0.352;
-  // double l4 = 0.085;
-
-  // double x = goal_pose.position.x;
-  // double y = goal_pose.position.y;
-  // double z = goal_pose.position.z - l1;
-
-  // double phi = M_PI;//M_PI; 
-
-
-
-  //   // // 1. Calculate base rotation (theta1)
-  //   double theta1 = atan2(y, x);
-
-  //   // double A = x - (l4 * cos(theta1) * cos(phi)); 
-  //   // double B = y - (l4 * sin(theta1) * cos(phi));  
-  //   // double C = z - (l4 * sin(phi)) - l1; 
-
-  //   // double theta3 = acos(((A*A) + (B*B) + (C*C) - (l2*l2) - (l3*l3)) / (2 * l2 * l3));
-
-
-
-
-
-
-
-
-  //   // 2. Calculate wrist position
-  //   double R = sqrt(x * x + y * y);
-
-  //   // 3. Solve for shoulder (theta2) and elbow (theta3)
-  //   double D = sqrt(R * R + z * z);
-
-  //   // Check if the target is reachable
-  //   // if (D > l1 + l2 || D < abs(l1 - l2)) {
-  //   //     std::cout << "Target is unreachable." << std::endl;
-  //   //     return {{0, 0, 0, 0}}; // Return invalid angles
-  //   // }
-
-  //   // Solve for theta3 using Law of Cosines
-  //   // The elbow-up solution is shown here.
-  //   double theta3 = acos((l1 * l1 + l2 * l2 - D * D) / (2 * l1 * l2));
-
-
-
-
-
-
-
-
-
-
-
-
-
-  //   double a = l3 * sin(theta3);
-  //   double b = l2 + (l3 * cos(theta3));
-  //   double c = z - l1 - (l4*sin(phi));
-  //   double r = sqrt((a*a) + (b*b));
-
-  //   double theta2 = atan2(c, sqrt((r*r) - (c*c))) - atan2(a, b);
-
-  //   double theta4 = phi - theta2 - theta3;
-
-  //   joint_results.push_back({theta1, theta2, theta3, theta4});
-
-    // // 2. Calculate wrist position
-    // double R = sqrt(x * x + y * y);
-
-    // // 3. Solve for shoulder (theta2) and elbow (theta3)
-    // double D = sqrt(R * R + z * z);
-
-    // // Check if the target is reachable
-    // if (D > L1 + L2 || D < abs(L1 - L2)) {
-    //     std::cout << "Target is unreachable." << std::endl;
-    //     return {NAN, NAN, NAN, NAN}; // Return invalid angles
-    // }
-
-    // // Solve for theta3 using Law of Cosines
-    // // The elbow-up solution is shown here.
-    // angles.theta3 = acos((L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2));
-
-    // // Solve for theta2 using Law of Cosines
-    // double gamma = atan2(z, R);
-    // double beta = acos((L1 * L1 + D * D - L2 * L2) / (2 * L1 * D));
-    // // The elbow-up solution
-    // angles.theta2 = gamma + beta;
-
-    // // 4. Set the wrist rotation (theta4)
-    // angles.theta4 = wrist_rot;
-
-
-
 
 
   return joint_results;
