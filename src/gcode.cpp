@@ -16,9 +16,9 @@ namespace gcode
 
   void Gcode::setOrigin(double x, double y, double z)
   {
-    double x_origin = x; 
-    double y_origin = y; 
-    double z_origin = z;
+    x_origin_ = x; 
+    y_origin_ = y; 
+    z_origin_ = z;
   }
 
   geometry_msgs::msg::PoseArray Gcode::toPoseArray(std::string gcode_file_path)
@@ -45,7 +45,7 @@ namespace gcode
     {
       if (line_txt.substr(0,2)==G0||line_txt.substr(0,2)==G1||line_txt.substr(0,3)==G92)
       {
-        for (int i = 0; i < regex_str.size(); ++i){
+        for (std::size_t i = 0; i < regex_str.size(); ++i){
           std::regex reg(regex_str[i]);
           std::sregex_iterator it(line_txt.begin(), line_txt.end(), reg);
           std::sregex_iterator it_end;
@@ -82,14 +82,15 @@ namespace gcode
           }
           match_str.clear();
         }
-        double float_x = (std::stod(x_global)*0.001) + x_origin; 
-        double float_y = (std::stod(y_global)*0.001) + y_origin; 
-        double float_z = (std::stod(z_global)*0.001) + z_origin;
-        double float_e = std::stod(e_global);
-        double float_f = std::stod(f_global); 
-        geometry_msgs::msg::Pose pose = createROSPoseMsg(float_x, float_y, float_z);
+        double float_x = std::stod(x_global); 
+        double float_y = std::stod(y_global); 
+        double float_z = std::stod(z_global);
+        // double float_e = std::stod(e_global);
+        // double float_f = std::stod(f_global);
+        // std::cout<<"["<<line_counter<<"]: "<<float_x <<", "<<float_y<<", "<<float_z<<std::endl; 
+        geometry_msgs::msg::Pose pose = createROSPoseMsg(float_x*0.001 + x_origin_, float_y*0.001 + y_origin_, float_z*0.001 + z_origin_);
         pose_array.poses.push_back(pose);
-        //std::cout<<"["<<line_counter<<"]: "<<float_x <<", "<<float_y<<", "<<float_z<<std::endl;
+        
       } //if
       ++line_counter;
     } //while loop

@@ -22,11 +22,7 @@ int main(int argc, char ** argv)
   auto spinner = std::thread([&executor]() { executor.spin(); });
 
 
-  gcode::Gcode gcode;
-  gcode.setOrigin(0.242, 0.003, 0.436);
-  std::string package_share_directory = ament_index_cpp::get_package_share_directory("sketch_bot_core");
-  std::string gcode_file_path = package_share_directory + "/gcode/apple.gcode";
-  geometry_msgs::msg::PoseArray pose_array = gcode.toPoseArray(gcode_file_path);
+
 
   robot_control::RobotControl rc_;
   std::vector<double> joints = {0.0, 30.0, 45.0, 104.0};
@@ -40,6 +36,19 @@ int main(int argc, char ** argv)
   // rc_.planCartesianPath({target_pose_approach});
 
   rc_.planToCartesianPose(target_pose_approach);
+  rclcpp::sleep_for(std::chrono::milliseconds(1500));
+  rc_.executeTrajectory();
+
+  rclcpp::sleep_for(std::chrono::milliseconds(1500));
+
+
+
+  gcode::Gcode gcode;
+  gcode.setOrigin(0.242, 0.003, 0.436);
+  std::string package_share_directory = ament_index_cpp::get_package_share_directory("sketch_bot_core");
+  std::string gcode_file_path = package_share_directory + "/gcode/apple.gcode";
+  geometry_msgs::msg::PoseArray pose_array = gcode.toPoseArray(gcode_file_path);
+  rc_.planCartesianPath(pose_array.poses);
   rclcpp::sleep_for(std::chrono::milliseconds(1500));
   rc_.executeTrajectory();
 

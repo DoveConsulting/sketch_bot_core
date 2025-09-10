@@ -22,9 +22,9 @@ public:
 
 private:
   geometry_msgs::msg::Pose createROSPoseMsg(double x, double y, double z);
-  double x_origin = 0.0;
-  double y_origin = 0.0;
-  double z_origin = 0.0;
+  double x_origin_ = 0.0;
+  double y_origin_ = 0.0;
+  double z_origin_ = 0.0;
 
 };
 

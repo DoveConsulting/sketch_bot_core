@@ -78,6 +78,7 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
   double z = goal_pose.position.z;
 
   geometry_msgs::msg::Pose goal_pose_wrist;
+  goal_pose_wrist.orientation.w = 1.0;
   goal_pose_wrist.position.x = x;
   goal_pose_wrist.position.y = y;
   goal_pose_wrist.position.z = z;
@@ -97,7 +98,7 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
   {
     RCLCPP_ERROR_STREAM(node_->get_logger(), "Failed to get IK solutions");
   }
-  RCLCPP_INFO_STREAM(node_->get_logger(), "6");
+  // RCLCPP_INFO_STREAM(node_->get_logger(), "6");
 
   for (std::size_t i = 0; i < joint_results.size(); ++i)
   {
@@ -107,14 +108,6 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
 
   return joint_results;
 }
-
-
-
-
-
-
-
-
 
 
   bool RobotControl::planToCartesianPose(geometry_msgs::msg::Pose target_pose)
@@ -184,17 +177,88 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
 
   bool RobotControl::planCartesianPath(std::vector<geometry_msgs::msg::Pose> waypoints)
   {
+    // std::cout<<"Tool0 waypoints"<<std::endl;
+    trajectory_msgs::msg::JointTrajectory trajectory;
+    trajectory.joint_names = move_group_interface_.getJointNames();
+
+    std::vector<double> start_joints;// = {90.7102*(M_PI/180.0), -35.0407*(M_PI/180.0), 127.156*(M_PI/180.0), -2.11503*(M_PI/180.0)};
+
+    const moveit::core::JointModelGroup* joint_model_group = 
+      move_group_interface_.getCurrentState()->getJointModelGroup("ar_manipulator");
+    moveit::core::RobotStatePtr current_state = move_group_interface_.getCurrentState(10);
+    current_state->copyJointGroupPositions(joint_model_group, start_joints);
+
+    double time_from_start = 0.0;
+    double time_diff = 0.2;
+
+    addTrajectoryPoint(trajectory, start_joints, time_from_start);
+    time_from_start += time_diff;
+
+
+    for (std::size_t i = 0; i < waypoints.size(); ++i)
+    {
+      std::cout<<i+1 <<" of "<<waypoints.size()<<std::endl;
+      // std::cout<<waypoints[i].position.x <<", "<<waypoints[i].position.y<<", "<<waypoints[i].position.z<<std::endl;
+      std::vector<double> joints = RobotControl::getNearestIKSolution(waypoints[i], start_joints);
+      start_joints = joints;
+      addTrajectoryPoint(trajectory, start_joints, time_from_start);
+      time_from_start += time_diff;
+
+    }
+
+    // std::cout<<"Wrist waypoints"<<std::endl;
+    // for (std::size_t i = 0; i < waypoints.size(); ++i)
+    // {
+    //   std::cout<<waypoints[i].position.x <<", "<<waypoints[i].position.y<<", "<<waypoints[i].position.z<<std::endl;
+    // }
     // We want the Cartesian path to be interpolated at a resolution of 1 cm
     // which is why we will specify 0.01 as the max step in Cartesian
     // translation.  We will specify the jump threshold as 0.0, effectively disabling it.
-    moveit_msgs::msg::RobotTrajectory trajectory;
-    const double jump_threshold = 0.0;
-    const double eef_step = 0.01;
-    double fraction = move_group_interface_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
-    (void)fraction;
-    motion_plan_.trajectory_ = trajectory;
+    // moveit_msgs::msg::RobotTrajectory trajectory;
+    // const double jump_threshold = 0.0;
+    // const double eef_step = 0.01;
+    // double fraction = move_group_interface_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+    // (void)fraction;
+    // for (std::size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i)
+    // {
+    //   trajectory.joint_trajectory.points[i].positions[3] = 
+    //     -trajectory.joint_trajectory.points[i].positions[2] - trajectory.joint_trajectory.points[i].positions[1] + (M_PI/2.0);
+    // }
+
+
+    motion_plan_.trajectory_.joint_trajectory = trajectory;
     return true;
   }
+
+
+
+
+
+
+void RobotControl::addTrajectoryPoint(trajectory_msgs::msg::JointTrajectory& joint_solution,
+                                       const std::vector<double>& positions, double time_from_start)
+{
+  trajectory_msgs::msg::JointTrajectoryPoint point;
+  point.positions = positions;
+  point.time_from_start = rclcpp::Duration::from_seconds(time_from_start);
+  point.velocities.resize(positions.size(), 0.0);
+  point.accelerations.resize(positions.size(), 0.0);
+  joint_solution.points.push_back(point);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   void RobotControl::addCollisionMesh()
   {
@@ -212,109 +276,7 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
     return true;
   }
 
-  // bool RobotControl::setGripperPosition(double joint_position)
-  // {
-  //   std::vector<double> joint_directions = {1.0, 1.0, -1.0, -1.0, -1.0, 1.0};
-  //   std::vector<double> joint_positions_radians;
-  //   for (double direction : joint_directions)
-  //     joint_positions_radians.push_back((direction*joint_position)*(M_PI/180.0));
-
-  //   bool within_bounds = move_group_interface_gripper_.setJointValueTarget(joint_positions_radians);
-  //   if (!within_bounds)
-  //   {
-  //     RCLCPP_ERROR(node_->get_logger(), "Target joint configuration for gripper outside of limits");
-  //     return false;
-  //   }
-
-  //   move_group_interface_gripper_.setMaxVelocityScalingFactor(0.05);
-  //   move_group_interface_gripper_.setMaxAccelerationScalingFactor(0.05);
-  //   moveit::planning_interface::MoveGroupInterface::Plan plan;
-  //   bool success = (move_group_interface_gripper_.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS);
-
-  //   if (success)
-  //   {
-  //     move_group_interface_.execute(plan);
-  //     return true;
-  //   }
-  //   else
-  //   {
-  //     RCLCPP_ERROR(node_->get_logger(), "Planning failed for gripper!");
-  //     return false;
-  //   }
-  // }
-
-
-
-
-  // bool RobotControl::graspObject(std::string object_model, std::string object_link)
-  // {
-  //     auto request = std::make_shared<linkattacher_msgs::srv::AttachLink::Request>();
-      
-  //     request->model1_name = "ur";              // Name of the first model.
-  //     request->link1_name = "wrist_3_link";     // Name of the link in the first model.
-  //     request->model2_name = object_model;      // Name of the second model.
-  //     request->link2_name = object_link;        // Name of the link in the second model.
-
-  //     while (!gz_link_attacher_client_->wait_for_service(std::chrono::seconds(3))) 
-  //     {
-  //       if (!rclcpp::ok()) 
-  //       {
-  //         RCLCPP_ERROR(node_->get_logger(), "Interrupted while waiting for link attacher service. Exiting.");
-  //         return false;
-  //       }
-  //       RCLCPP_INFO(node_->get_logger(), "Link attacher service not available, waiting again...");
-  //     }
-
-  //     auto future_result = gz_link_attacher_client_->async_send_request(request);
-
-  //     if (future_result.wait_for(std::chrono::seconds(3)) == std::future_status::ready) 
-  //     {
-  //         auto response = future_result.get();
-  //         // Process the response
-  //         RCLCPP_INFO_STREAM(node_->get_logger(), "Gripper successfully grasped " << object_model);
-  //     } 
-  //     else 
-  //     {
-  //         RCLCPP_ERROR_STREAM(node_->get_logger(), "Gripper failed to grasp " << object_model);
-  //         return false;
-  //     }
-  //     return true;
-  // }
-
-  // bool RobotControl::releaseObject(std::string object_model, std::string object_link)
-  // {
-  //     auto request = std::make_shared<linkattacher_msgs::srv::DetachLink::Request>();
-      
-  //     request->model1_name = "ur";              // Name of the first model.
-  //     request->link1_name = "wrist_3_link";     // Name of the link in the first model.
-  //     request->model2_name = object_model;      // Name of the second model.
-  //     request->link2_name = object_link;        // Name of the link in the second model.
-
-  //     while (!gz_link_detacher_client_->wait_for_service(std::chrono::seconds(3))) 
-  //     {
-  //       if (!rclcpp::ok()) 
-  //       {
-  //         RCLCPP_ERROR(node_->get_logger(), "Interrupted while waiting for link detacher service. Exiting.");
-  //         return false;
-  //       }
-  //       RCLCPP_INFO(node_->get_logger(), "Link detacher service not available, waiting again...");
-  //     }
-
-  //     auto future_result = gz_link_detacher_client_->async_send_request(request);
-
-  //     if (future_result.wait_for(std::chrono::seconds(3)) == std::future_status::ready) 
-  //     {
-  //         auto response = future_result.get();
-  //         // Process the response
-  //         RCLCPP_INFO_STREAM(node_->get_logger(), "Gripper successfully released " << object_model);
-  //     } 
-  //     else 
-  //     {
-  //       RCLCPP_ERROR_STREAM(node_->get_logger(), "Griper failed to release " << object_model);
-  //       return false;
-  //     }
-  //     return true;
-  // }
+  
 
   bool RobotControl::getTargetPose(geometry_msgs::msg::Pose& target_pose, std::string target_frame)
   {
@@ -405,5 +367,82 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
 
     return pose;
   }
+
+
+
+
+
+
+
+
+
+std::vector<double> RobotControl::getNearestIKSolution(geometry_msgs::msg::Pose goal_pose,
+                                                        std::vector<double> start_joints)
+{
+  // Get all collision-free IK solutions
+  std::vector<std::vector<double>> joint_results = getIKSolutions(goal_pose);
+
+  // Find the closest joint configuration to start_joints
+  double min_distance = std::numeric_limits<double>::max();
+  std::vector<double> nearest_solution;
+
+  for (auto joints : joint_results)
+  {
+    double distance = 0.0;
+    for (std::size_t i = 0; i < joints.size(); ++i)
+    {
+      joints[i] = toClosestCoterminalAngle(joints[i], start_joints[i], -M_PI, M_PI);
+      double diff = start_joints[i] - joints[i];
+      distance += diff * diff;
+
+    }
+    distance = std::sqrt(distance);
+    if (distance < min_distance)
+    {
+      min_distance = distance;
+      nearest_solution = joints;
+    }
+  }
+
+  return nearest_solution;
+}
+
+double RobotControl::toClosestCoterminalAngle(double angle, double current_angle, double lower_bound,
+                                               double upper_bound)
+{
+  double coterminal_angle;
+  std::vector<double> coterminal_angles;
+  coterminal_angles.push_back(angle);
+
+  // Get negative coterminal angles
+  coterminal_angle = angle - (M_PI * 2);
+  while (coterminal_angle > lower_bound)
+  {
+    coterminal_angles.push_back(coterminal_angle);
+    coterminal_angle -= (M_PI * 2);
+  }
+
+  // Get positive coterminal angles
+  coterminal_angle = angle + (M_PI * 2);
+  while (coterminal_angle < upper_bound)
+  {
+    coterminal_angles.push_back(coterminal_angle);
+    coterminal_angle += (M_PI * 2);
+  }
+
+  // Search for coterminal angle closest to the current angle
+  auto it = std::min_element(coterminal_angles.begin(), coterminal_angles.end(),
+                             [current_angle](double angle_a, double angle_b) {
+                               return std::abs(current_angle - angle_a) < std::abs(current_angle - angle_b);
+                             });
+
+  return *it;
+}
+
+
+
+
+
+
 
 }

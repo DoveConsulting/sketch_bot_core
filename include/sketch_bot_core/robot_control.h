@@ -22,7 +22,7 @@
 #include <thread>
 #include <chrono>
 #include <cmath>
-
+#include <algorithm>
 
 // #include "linkattacher_msgs/srv/attach_link.hpp"
 // #include "linkattacher_msgs/srv/detach_link.hpp"
@@ -74,6 +74,27 @@ private:
   bool getPose(std::string fromFrame, std::string toFrame, geometry_msgs::msg::Pose& pose);
 
   std::vector<std::vector<double>> getIKSolutions(geometry_msgs::msg::Pose goal_pose);
+
+
+
+
+void addTrajectoryPoint(trajectory_msgs::msg::JointTrajectory& joint_solution,
+                                       const std::vector<double>& positions, double time_from_start);
+
+
+
+std::vector<double> getNearestIKSolution(geometry_msgs::msg::Pose goal_pose,
+                                                        std::vector<double> start_joints);
+
+
+  double toClosestCoterminalAngle(double angle, double current_angle, double lower_bound,
+                                               double upper_bound);
+
+
+
+
+
+
 
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
 
