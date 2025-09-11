@@ -45,11 +45,24 @@ def generate_launch_description() -> LaunchDescription:
                 parameters=[
                     moveit_config.to_dict(),
                 ],
-                # prefix=["xterm -bg black -fg white -e gdb -ex run --args"],
             ),
         ],
     )
 
-    nodes_to_start = [sketch_node]
+    plot_node = GroupAction(
+        actions=[
+            Node(
+                package="sketch_bot_core",
+                executable="plot",
+                output="both",
+                parameters=[
+                    moveit_config.to_dict(),
+                ],
+            ),
+        ],
+    )
+
+
+    nodes_to_start = [sketch_node, plot_node]
     
     return LaunchDescription(nodes_to_start)

@@ -24,6 +24,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   tf2
   tf2_ros
   tf2_eigen
+  tf2_geometry_msgs
   Eigen3
 )
 
@@ -88,8 +89,13 @@ add_executable(sketch src/sketch.cpp)
 ament_target_dependencies(sketch ${THIS_PACKAGE_INCLUDE_DEPENDS})
 target_link_libraries(sketch ${PROJECT_NAME})
 
+add_executable(plot src/plot.cpp)
+ament_target_dependencies(plot ${THIS_PACKAGE_INCLUDE_DEPENDS})
+target_link_libraries(plot ${PROJECT_NAME})
+
 install(TARGETS
   sketch
+  plot
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 

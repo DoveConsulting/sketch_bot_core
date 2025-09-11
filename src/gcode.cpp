@@ -85,6 +85,11 @@ namespace gcode
         double float_x = std::stod(x_global); 
         double float_y = std::stod(y_global); 
         double float_z = std::stod(z_global);
+
+        if (line_txt.substr(0,2)==G0)
+        {
+          float_z = 10;
+        }
         // double float_e = std::stod(e_global);
         // double float_f = std::stod(f_global);
         // std::cout<<"["<<line_counter<<"]: "<<float_x <<", "<<float_y<<", "<<float_z<<std::endl; 
