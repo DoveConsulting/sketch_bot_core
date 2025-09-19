@@ -25,10 +25,10 @@ int main(int argc, char ** argv)
 
 
   robot_control::RobotControl rc_;
-  std::vector<double> joints = {0.0, 30.0, 45.0, 104.0};
-  // rc_.planToJointPose(joints);
-  // rclcpp::sleep_for(std::chrono::milliseconds(100));
-  // rc_.executeTrajectory();
+  std::vector<double> joints = {90.0, 34.0, -127.0, -2.0};
+  rc_.planToJointPose(joints);
+  rclcpp::sleep_for(std::chrono::milliseconds(100));
+  rc_.executeTrajectory();
 
   // geometry_msgs::msg::Pose target_pose_approach = rc_.createROSPoseMsg(0.437, 0, 0.392, 0.0, 0.0, 0.0);
   geometry_msgs::msg::Pose target_pose_approach = rc_.createROSPoseMsg(0.242, 0.003, 0.436, 0.0, 0.0, 0.0);

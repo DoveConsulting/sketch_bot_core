@@ -91,7 +91,9 @@ std::vector<double> getNearestIKSolution(geometry_msgs::msg::Pose goal_pose,
                                                double upper_bound);
 
 
-
+double getCartesianDistance(
+  const geometry_msgs::msg::Pose & p1,
+  const geometry_msgs::msg::Pose & p2);
 
 
 

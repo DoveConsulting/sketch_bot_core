@@ -82,7 +82,9 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
   goal_pose_wrist.position.x = x;
   goal_pose_wrist.position.y = y;
   goal_pose_wrist.position.z = z;
-
+  // goal_pose_wrist.position.x = 0.148;//x;
+  // goal_pose_wrist.position.y = 0.002;//y;
+  // goal_pose_wrist.position.z = 0.436;//z;
 
   const moveit::core::RobotModelPtr& kinematic_model = robot_model_loader_->getModel();
   const moveit::core::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("ar_manipulator");
@@ -102,9 +104,25 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
 
   for (std::size_t i = 0; i < joint_results.size(); ++i)
   {
-    joint_results[i][3] = -joint_results[i][2] - joint_results[i][1] + (M_PI/2.0);
+    joint_results[i][3] = -joint_results[i][2] - joint_results[i][1] - (M_PI/2.0);
+
+    for (std::size_t j = 0; j < joint_results[i].size(); ++j)
+    {
+      // if (joint_results[i][j]>M_PI && joint_results[i][j]<=M_PI*2.0)
+      // {
+      //   joint_results[i][j] = M_PI - joint_results[i][j];
+      // }
+      joint_results[i][j] = fmod((joint_results[i][j] + M_PI), (M_PI*2.0)) - M_PI;
+    }
   }
 
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "==========================Joint soultions are");
+    // for (size_t i = 0; i < joint_results.size(); ++i) { // Iterate through rows
+    //     for (size_t j = 0; j < joint_results[i].size(); ++j) { // Iterate through elements in current row
+    //         std::cout << joint_results[i][j] * (180.0/M_PI) << " ";
+    //     }
+    //     std::cout << std::endl; // New line after each row
+    // }
 
   return joint_results;
 }
@@ -113,24 +131,39 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
   bool RobotControl::planToCartesianPose(geometry_msgs::msg::Pose target_pose)
   {
 
-    std::vector<std::vector<double>> joint_results = getIKSolutions(target_pose);
+    // std::vector<std::vector<double>> joint_results = getIKSolutions(target_pose);
 
-    RCLCPP_INFO_STREAM(node_->get_logger(), "==========================Joint soultions are");
-    for (size_t i = 0; i < joint_results.size(); ++i) { // Iterate through rows
-        for (size_t j = 0; j < joint_results[i].size(); ++j) { // Iterate through elements in current row
-            std::cout << joint_results[i][j] * (180.0/M_PI) << " ";
-        }
-        std::cout << std::endl; // New line after each row
-    }
 
-    if (joint_results.empty())
-      return false;
+
+    std::vector<double> start_joints;// = {90.7102*(M_PI/180.0), -35.0407*(M_PI/180.0), 127.156*(M_PI/180.0), -2.11503*(M_PI/180.0)};
+
+    const moveit::core::JointModelGroup* joint_model_group = 
+      move_group_interface_.getCurrentState()->getJointModelGroup("ar_manipulator");
+    moveit::core::RobotStatePtr current_state = move_group_interface_.getCurrentState(10);
+    current_state->copyJointGroupPositions(joint_model_group, start_joints);
+
+     std::vector<double> joints = RobotControl::getNearestIKSolution(target_pose, start_joints);
+
+
+
+
+
+    // RCLCPP_INFO_STREAM(node_->get_logger(), "==========================Joint soultions are");
+    // for (size_t i = 0; i < joint_results.size(); ++i) { // Iterate through rows
+    //     for (size_t j = 0; j < joint_results[i].size(); ++j) { // Iterate through elements in current row
+    //         std::cout << joint_results[i][j] * (180.0/M_PI) << " ";
+    //     }
+    //     std::cout << std::endl; // New line after each row
+    // }
+
+    // if (joint_results.empty())
+    //   return false;
 
 
     // planToJointPose(joint_results[0]);
     // return true;
 
-    bool within_bounds = move_group_interface_.setJointValueTarget(joint_results[0]);
+    bool within_bounds = move_group_interface_.setJointValueTarget(joints);
     if (!within_bounds)
     {
       RCLCPP_ERROR(node_->get_logger(), "Target joint configuration outside of limits");
@@ -175,6 +208,32 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
     // }
   }
 
+
+
+double RobotControl::getCartesianDistance(
+  const geometry_msgs::msg::Pose & p1,
+  const geometry_msgs::msg::Pose & p2)
+{
+  // Extract position components
+  double x1 = p1.position.x;
+  double y1 = p1.position.y;
+  double z1 = p1.position.z;
+
+  double x2 = p2.position.x;
+  double y2 = p2.position.y;
+  double z2 = p2.position.z;
+
+  // Calculate the squared difference for each dimension
+  double dx = x2 - x1;
+  double dy = y2 - y1;
+  double dz = z2 - z1;
+
+  // Compute and return the Cartesian distance
+  return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+
+
   bool RobotControl::planCartesianPath(std::vector<geometry_msgs::msg::Pose> waypoints)
   {
     // std::cout<<"Tool0 waypoints"<<std::endl;
@@ -192,17 +251,30 @@ std::vector<std::vector<double>> RobotControl::getIKSolutions(geometry_msgs::msg
     double time_diff = 0.2;
 
     addTrajectoryPoint(trajectory, start_joints, time_from_start);
-    time_from_start += time_diff;
+    // time_from_start += time_diff;
 
 
     for (std::size_t i = 0; i < waypoints.size(); ++i)
     {
-      std::cout<<i+1 <<" of "<<waypoints.size()<<std::endl;
+      // std::cout<<i+1 <<" of "<<waypoints.size()<<std::endl;
       // std::cout<<waypoints[i].position.x <<", "<<waypoints[i].position.y<<", "<<waypoints[i].position.z<<std::endl;
       std::vector<double> joints = RobotControl::getNearestIKSolution(waypoints[i], start_joints);
-      start_joints = joints;
-      addTrajectoryPoint(trajectory, start_joints, time_from_start);
+      
+      double maxDiff = 0; // Initialize with 0, or with the first difference
+      for (size_t i = 0; i < joints.size(); ++i) {
+          double currentDiff = std::abs(joints[i] - start_joints[i]);
+          maxDiff = std::max(maxDiff, currentDiff);
+      }
+      time_diff = maxDiff * 10.0;
+
+      // std::cout<<"time_diff: " <<time_diff<<std::endl;
+
+
+      
       time_from_start += time_diff;
+      addTrajectoryPoint(trajectory, joints, time_from_start);
+      start_joints = joints;
+      // time_from_start += time_diff;
 
     }
 

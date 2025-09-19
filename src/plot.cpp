@@ -66,7 +66,7 @@ private:
     new_marker.pose.position.z = transform_stamped.transform.translation.z;
     new_marker.pose.orientation = transform_stamped.transform.rotation;
 
-    RCLCPP_INFO_STREAM(this->get_logger(), "Z: "<<new_marker.pose.position.z);
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Z: "<<new_marker.pose.position.z);
 
     // Set marker scale and color
     new_marker.scale.x = 0.01;
