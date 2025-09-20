@@ -234,9 +234,8 @@ double RobotControl::getCartesianDistance(
 
 
 
-  bool RobotControl::planCartesianPath(std::vector<geometry_msgs::msg::Pose> waypoints)
+  bool RobotControl::planCartesianPath(std::vector<geometry_msgs::msg::Pose> path)
   {
-    // std::cout<<"Tool0 waypoints"<<std::endl;
     trajectory_msgs::msg::JointTrajectory trajectory;
     trajectory.joint_names = move_group_interface_.getJointNames();
 
@@ -247,60 +246,45 @@ double RobotControl::getCartesianDistance(
     moveit::core::RobotStatePtr current_state = move_group_interface_.getCurrentState(10);
     current_state->copyJointGroupPositions(joint_model_group, start_joints);
 
-    double time_from_start = 0.0;
-    double time_diff = 0.2;
+    // A vector of RobotStates representing the path
+    std::vector<moveit::core::RobotStatePtr> waypoints;
+    waypoints.push_back(current_state);
 
-    addTrajectoryPoint(trajectory, start_joints, time_from_start);
-    // time_from_start += time_diff;
-
-
-    for (std::size_t i = 0; i < waypoints.size(); ++i)
+    for (std::size_t i = 0; i < path.size(); ++i)
     {
-      // std::cout<<i+1 <<" of "<<waypoints.size()<<std::endl;
-      // std::cout<<waypoints[i].position.x <<", "<<waypoints[i].position.y<<", "<<waypoints[i].position.z<<std::endl;
-      std::vector<double> joints = RobotControl::getNearestIKSolution(waypoints[i], start_joints);
-      
-      double maxDiff = 0; // Initialize with 0, or with the first difference
-      for (size_t i = 0; i < joints.size(); ++i) {
-          double currentDiff = std::abs(joints[i] - start_joints[i]);
-          maxDiff = std::max(maxDiff, currentDiff);
-      }
-      time_diff = maxDiff * 10.0;
-
-      // std::cout<<"time_diff: " <<time_diff<<std::endl;
-
-
-      
-      time_from_start += time_diff;
-      addTrajectoryPoint(trajectory, joints, time_from_start);
-      start_joints = joints;
-      // time_from_start += time_diff;
-
+      // std::cout<<i+1 <<" of "<<path.size()<<std::endl;
+      // std::cout<<path[i].position.x <<", "<<path[i].position.y<<", "<<path[i].position.z<<std::endl;
+      std::vector<double> joints = RobotControl::getNearestIKSolution(path[i], start_joints);
+      moveit::core::RobotStatePtr waypoint = std::make_shared<moveit::core::RobotState>(*current_state);
+      waypoint->setJointGroupPositions("ar_manipulator", joints);
+      waypoints.push_back(waypoint);
     }
 
-    // std::cout<<"Wrist waypoints"<<std::endl;
-    // for (std::size_t i = 0; i < waypoints.size(); ++i)
-    // {
-    //   std::cout<<waypoints[i].position.x <<", "<<waypoints[i].position.y<<", "<<waypoints[i].position.z<<std::endl;
-    // }
-    // We want the Cartesian path to be interpolated at a resolution of 1 cm
-    // which is why we will specify 0.01 as the max step in Cartesian
-    // translation.  We will specify the jump threshold as 0.0, effectively disabling it.
-    // moveit_msgs::msg::RobotTrajectory trajectory;
-    // const double jump_threshold = 0.0;
-    // const double eef_step = 0.01;
-    // double fraction = move_group_interface_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
-    // (void)fraction;
-    // for (std::size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i)
-    // {
-    //   trajectory.joint_trajectory.points[i].positions[3] = 
-    //     -trajectory.joint_trajectory.points[i].positions[2] - trajectory.joint_trajectory.points[i].positions[1] + (M_PI/2.0);
-    // }
+    // --- Step 2: Create a kinematic trajectory from the waypoints ---
+    robot_trajectory::RobotTrajectory kinematic_trajectory(move_group_interface_.getRobotModel(), "ar_manipulator");
+    for (const auto& waypoint : waypoints) {
+      kinematic_trajectory.addSuffixWayPoint(waypoint, 0.0);
+    }
 
+    // --- Step 3: Time parameterize and blend the trajectory ---
+    // This step calculates the time intervals, velocities, and accelerations.
+    trajectory_processing::TimeOptimalTrajectoryGeneration tottg(0.1, 0.1, 0.01);
 
-    motion_plan_.trajectory_.joint_trajectory = trajectory;
+    double max_velocity_scaling_factor = 0.5;//0.02;
+    if (!tottg.computeTimeStamps(kinematic_trajectory, max_velocity_scaling_factor, 1.0)) {
+      RCLCPP_ERROR(node_->get_logger(), "Time parameterization failed.");
+      return false;
+    }
+
+    // --- Step 4: Convert to ROS message and publish ---
+    // The parameterized trajectory is now fully blended and ready.
+    moveit_msgs::msg::RobotTrajectory robot_trajectory_msg;
+    kinematic_trajectory.getRobotTrajectoryMsg(robot_trajectory_msg);
+
+    motion_plan_.trajectory_ = robot_trajectory_msg;
     return true;
-  }
+
+}
 
 
 

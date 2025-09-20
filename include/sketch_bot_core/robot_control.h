@@ -24,6 +24,13 @@
 #include <cmath>
 #include <algorithm>
 
+
+
+#include <moveit/planning_interface/planning_interface.h>
+#include <moveit/robot_trajectory/robot_trajectory.h>
+#include <moveit/trajectory_processing/time_optimal_trajectory_generation.h>
+
+
 // #include "linkattacher_msgs/srv/attach_link.hpp"
 // #include "linkattacher_msgs/srv/detach_link.hpp"
 
@@ -43,7 +50,7 @@ public:
 
   bool planToCartesianPose(geometry_msgs::msg::Pose target_pose);
 
-  bool planCartesianPath(std::vector<geometry_msgs::msg::Pose> waypoints);
+  bool planCartesianPath(std::vector<geometry_msgs::msg::Pose> path);
 
   bool executeTrajectory();
 
